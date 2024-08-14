@@ -5,7 +5,7 @@
 
 extern int main(void);
 extern void ex(void);
-extern void printstring(char *s);
+//extern void printastring(char *s);
 
 __attribute__ ((aligned (16))) char stack0[4096];
 
@@ -13,22 +13,23 @@ void printhex(uint64);
 
 volatile struct uart* uart0 = (volatile struct uart *)0x10000000;
 
+// TODO: implement our syscalls here:
+
 // Syscall 1: printstring. Takes a char *, prints the string to the UART, returns nothing
 // Syscall 2: putachar.    Takes a char, prints the character to the UART, returns nothing
 // Syscall 3: getachar.    Takes no parameter, reads a character from the UART (keyboard), returns the char
 
-static void putachar(char c){
-    while((uart0->LSR & (1<<5)) == 0)//wenn bit 5 im LSR gesetzt, dann THR empty -> dann können wir es zur Ausgabe nutzen
-    ; 
-    uart0->THR = c; //ausgabe des characters mithilfe des transmit hold registers des UART
+static void putachar(char c) {
+  while ((uart0->LSR & (1<<5)) == 0)
+    ; // polling!
+  uart0->THR = c;
 }
 
 static void printastring(char *s) {
-    while (*s) { //so lange noch charactere in s sind, rufe putachar auf
-        putachar(*s); //putachar gibt einzelne character mithilfe des uarts aus
-        s++; //weiter zum nächsten character
-        
-    }
+  while (*s) {
+    putachar(*s);
+    s++;
+  }
 }
 
 static char getachar(void) {
@@ -53,7 +54,6 @@ void printhex(uint64 x) {
       s = d - 10 + 'a';
     putachar(s);
   }
-  printastring("\n");
 }
 
 // This is the C code part of the exception handler
@@ -63,30 +63,55 @@ void exception(void) {
   uint64 param;
   uint64 retval = 0;
 
-  // all exceptions end up here - so far, we assume that only syscalls occur
-  // will have to decode the reason for the exception later!
-
-  // TODO: copy registers a7 and a0 to variables nr and param
   asm volatile("mv %0, a7" : "=r" (nr) : : );
   asm volatile("mv %0, a0" : "=r" (param) : : );
 
-  switch(nr) {
-    case PRINTASTRING:
-      printastring((char *)param);
-      break;
-    case PUTACHAR:
-      putachar((char)param);
-      break;
-    case GETACHAR:
-      retval = (uint64)getachar();
-      break;
-    default:
-      printastring("*** INVALID SYSCALL NUMBER!!! ***\n");
-      break;
+  uint64 pc = r_mepc();
+  uint64 mcause = r_mcause();
+
+  //printastring("mcause = ");
+  //printhex(mcause);
+  printastring("\n");
+  printastring("AN EXCEPTION OCCURED!");
+  printastring("\n");
+
+  if (mcause & (1ULL<<63)) {
+    // Interrupt - async
+    printastring("INT\n");
+  } else {
+    // all exceptions end up here
+    if ((mcause & ~(1ULL<<63)) == 8) { // it's an ECALL!
+
+      printastring("SYSCALL ");
+      printhex(nr);
+      printastring(" PARAM ");
+      printhex(param);
+      printastring("\n");
+
+      switch(nr) {
+      case PRINTASTRING:
+        printastring((char *)param);
+        break;
+      case PUTACHAR:
+        putachar((char)param);
+        break;
+      case GETACHAR:
+        retval = (uint64)getachar();
+          break;
+      default:
+        printastring("*** INVALID SYSCALL NUMBER!!! ***\n");
+        break;
+      }
+    } else { 
+      printastring("EXC mcause = ");
+      printhex(mcause);
+      printastring(", mepc = ");
+      printhex(pc);
+      printastring("\n");
+    }
   }
 
   // Here, we adjust return value - we want to return to the instruction _after_ the ecall! (at address mepc+4)
-  uint64 pc = r_mepc();
   w_mepc(pc+4);
 
   // TODO: pass the return value back in a0

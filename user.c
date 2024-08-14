@@ -1,6 +1,16 @@
 #include "types.h"
 #include "syscalls.h"
 
+#define REGION_1_START 0x00000000ULL
+#define REGION_1_END 0x7FFFFFFFULL
+#define REGION_2_START 0x80000000ULL
+#define REGION_2_END 0x800FFFFFULL
+#define REGION_3_START 0x80100000ULL
+#define REGION_3_END 0x80ffffffULL
+
+__attribute__((section(".userdata"), aligned(16))) char userstack[4096];
+
+
 uint64 __attribute__((section (".usertext")))
 syscall(uint64 nr, uint64 param){
     uint64 retval;
@@ -37,17 +47,38 @@ char getachar(void) {
     return syscall(GETACHAR, 0);
 }
 
+void __attribute__((section (".usertext")))
+test_memory_region(uint64 start, uint64 end, char *msg){
+    uint64 *ptr;
+    char *message = msg;
+    printastring(message);
+    printastring("\n");
+
+    // Schreibe nur einmal an die Startadresse des Bereichs
+    ptr = (uint64 *)start;
+    *ptr = 0x80ff0000ULL;
+
+    printastring("Region test succeeded. \n");
+}
+
+
 int __attribute__((section (".usertext"))) main(void) {
     char c = 0;
     printastring("Hallo Bamberg!\n");
-    do {
-      c = getachar();
-      if (c >= 'a' && c <= 'z'){
-         c = c & ~0x20; //This operation effectively clears the 6th bit (0x20), which is the difference between lowercase and uppercase letters in ASCII
-      };
-      putachar(c);
-    } while (c != 'X');
+	printastring("Starting the PMP test.. \n");
 
-    printastring("This is the end!\n");
+    test_memory_region(REGION_1_START, REGION_1_END, "Testing Region 1 (no permissions)");
+    test_memory_region(REGION_2_START, REGION_2_END, "Testing Region 2 (no permissions)");
+    test_memory_region(REGION_3_START, REGION_3_END, "Testing Region 3 (all permissions)");
+
+    printastring("PMP test completed");
+
+    //do {
+    //  c = getachar();
+    //  if (c >= 'a' && c <= 'z'){
+    //     c = c & ~0x20; //This operation effectively clears the 6th bit (0x20), which is the difference between lowercase and uppercase letters in ASCII
+    //  };
+    //  putachar(c);
+    //} while (c != 'X');
     return 0;
 }

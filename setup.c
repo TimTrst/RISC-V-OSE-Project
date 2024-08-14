@@ -28,8 +28,19 @@ void setup(void) {
   w_satp(0);
 
   // configure Physical Memory Protection to give user mode access to all of physical memory.
-  w_pmpaddr0(0x3fffffffffffffULL);
-  w_pmpcfg0(0xf);
+  //w_pmpaddr0(0x3fffffffffffffULL);
+  //w_pmpcfg0(0xf);
+
+  //konfiguieren der pmp für die folgenden segmente
+  w_pmpaddr0(0x7fffffffULL);
+  w_pmpcfg0(0x0);
+
+  w_pmpaddr1(0x800fffffULL);
+  w_pmpcfg1(0x0);
+
+  w_pmpaddr2(0x80ffffffULL);
+  w_pmpcfg2(0xF);
+
 
   // set M Exception Program Counter to main, for mret, requires gcc -mcmodel=medany
   w_mepc((uint64)main);

@@ -5,6 +5,14 @@
 #define MSTATUS_MIE (1L << 3)    // machine-mode interrupt enable.
 
 static inline uint64
+r_mcause()
+{ 
+  uint64 x;
+  asm volatile("csrr %0, mcause" : "=r" (x) );
+  return x;
+}
+
+static inline uint64
 r_mstatus()
 { 
   uint64 x;
@@ -79,6 +87,9 @@ w_sie(uint64 x)
   asm volatile("csrw sie, %0" : : "r" (x));
 }
 
+
+//Ansprechen der PMP Config sowie Adressbereich CSR register
+//die parameter übergen entweder den adressbereich des segments (für addrx) oder die permission bits fpr cfgx
 static inline void
 w_pmpcfg0(uint64 x)
 {
@@ -90,6 +101,31 @@ w_pmpaddr0(uint64 x)
 {
   asm volatile("csrw pmpaddr0, %0" : : "r" (x));
 }
+
+static inline void
+w_pmpcfg1(uint64 x)
+{
+  asm volatile("csrw pmpcfg1, %0" : : "r" (x));
+}
+
+static inline void
+w_pmpaddr1(uint64 x)
+{
+  asm volatile("csrw pmpaddr1, %0" : : "r" (x));
+}
+
+static inline void
+w_pmpcfg2(uint64 x)
+{
+  asm volatile("csrw pmpcfg2, %0" : : "r" (x));
+}
+
+static inline void
+w_pmpaddr2(uint64 x)
+{
+  asm volatile("csrw pmpaddr2, %0" : : "r" (x));
+}
+
 
 // Machine-mode interrupt vector
 static inline void

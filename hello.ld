@@ -50,6 +50,11 @@ SECTIONS
     . = ALIGN(0x1000);
     PROVIDE(etext = .);
   }
+  .userdata : {
+    *(.userdata .userdata.*)
+    . = ALIGN(0x1000);
+    PROVIDE(etext = .);
+  }
 
   PROVIDE(end = .);
 }
