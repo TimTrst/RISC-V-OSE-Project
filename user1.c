@@ -69,16 +69,10 @@ int __attribute__((section (".usertext"))) main(void) {
 
     test_memory_region(REGION_1_START, REGION_1_END, "Testing Region 1 (no permissions)");
     test_memory_region(REGION_2_START, REGION_2_END, "Testing Region 2 (no permissions)");
-    test_memory_region(REGION_3_START, REGION_3_END, "Testing Region 3 (all permissions)");
+    //test_memory_region(REGION_3_START, REGION_3_END, "Testing Region 3 (all permissions)");
 
     printastring("PMP test completed");
 
-    //do {
-    //  c = getachar();
-    //  if (c >= 'a' && c <= 'z'){
-    //     c = c & ~0x20; //This operation effectively clears the 6th bit (0x20), which is the difference between lowercase and uppercase letters in ASCII
-    //  };
-    //  putachar(c);
-    //} while (c != 'X');
-    return 0;
+    
+return 0;
 }

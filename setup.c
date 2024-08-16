@@ -32,14 +32,12 @@ void setup(void) {
   //w_pmpcfg0(0xf);
 
   //konfiguieren der pmp für die folgenden segmente
-  w_pmpaddr0(0x7fffffffULL);
-  w_pmpcfg0(0x0);
+  w_pmpaddr0(0x80000000ull >> 2);
+  w_pmpcfg2(0x0f0000);
 
-  w_pmpaddr1(0x800fffffULL);
-  w_pmpcfg1(0x0);
+  w_pmpaddr1(0x80100000ull >> 2);
 
-  w_pmpaddr2(0x80ffffffULL);
-  w_pmpcfg2(0xF);
+  w_pmpaddr2(0xffffffffull >> 2);
 
 
   // set M Exception Program Counter to main, for mret, requires gcc -mcmodel=medany
@@ -48,4 +46,3 @@ void setup(void) {
   // switch to user mode (configured in mstatus) and jump to address in mepc CSR -> main().
   asm volatile("mret");
 }
-

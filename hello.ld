@@ -15,12 +15,6 @@ SECTIONS
     PROVIDE(etext = .);
   }	
 
-  .user : {
-    *(.user .user.*)
-    . = ALIGN(0x1000);
-    PROVIDE(etext = .);
-  }
-
   .rodata : {
     . = ALIGN(16);
     *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
