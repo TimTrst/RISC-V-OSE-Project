@@ -2,8 +2,23 @@
 .globl exception
 .align 4
 ex:
-        // make room to save registers.
+        csrrw a0, mscratch, a0
+        li a0, 0x80200000
+        // problem, der sp zeigt auf eine virtuelle adresse
+        // austauschen der beiden register werte a0 in scr mscratch und mscratch in a0
+        // in mscratch können temp werte abgespeichert werden
+        // so haben wir a0 zur verfügung für jetzt
+        
+        // laden der physischen basisadresse des stacks in a0
+
+        // jetzt können wir platz auf den stack machen 
         addi sp, sp, -256
+        add sp, sp, a0 
+        //zeigt nun auf startbereich des stacks im virtuellen speicher
+
+        // erneutes austauschen von mscratch und a0+
+        // dadurch haben wir wieder den originalen wert in register a0
+        csrrw a0, mscratch, a0
 
         // save the registers.
         sd ra, 0(sp)

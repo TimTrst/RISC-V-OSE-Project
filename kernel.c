@@ -5,7 +5,6 @@
 
 extern int main(void);
 extern void ex(void);
-//extern void printastring(char *s);
 
 __attribute__ ((aligned (16))) char stack0[4096];
 
@@ -25,7 +24,7 @@ static void putachar(char c) {
   uart0->THR = c;
 }
 
-static void printastring(char *s) {
+void printastring(char *s) {
   while (*s) {
     putachar(*s);
     s++;
@@ -69,10 +68,8 @@ void exception(void) {
   uint64 pc = r_mepc();
   uint64 mcause = r_mcause();
 
-  //printastring("mcause = ");
-  //printhex(mcause);
-  printastring("\n");
-  printastring("AN EXCEPTION OCCURED!");
+  printastring("mcause = ");
+  printhex(mcause);
   printastring("\n");
 
   if (mcause & (1ULL<<63)) {
@@ -90,7 +87,7 @@ void exception(void) {
 
       switch(nr) {
       case PRINTASTRING:
-        printastring((char *)param);
+        printastring((char *)(param + 0x80200000ULL));
         break;
       case PUTACHAR:
         putachar((char)param);

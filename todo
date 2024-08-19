@@ -1,0 +1,8 @@
+- ich habe schon mal die beiden user programme kopiert (hier ist erstmal nicht viel anders als in meiner vorherigen version)
+	- jedes user program init einen eigenen stack
+- eigene user und kernel einstiege (initialisieren den stack und setzen den stackpointer)
+- das kernel program enthält bereits das notwendige exception handling (zusätzlich zu den syscalls)
+	- hier muss später (multitasking) noch yield für cooperative MT implementiert werden sowie die funktionalität für das setzen von running, waiting, blocked usw. für die prozesse
+- für VM
+	- im setup müssen wir jetzt erstmal die pagetables für jeden prozess initialisieren
+	- ausserdem müssen wir im exception handler noch die adressen richtig abspeichern (da gibts den bug mit den falschen physischen? adresszugriff seit vm aktiviert wurde)
