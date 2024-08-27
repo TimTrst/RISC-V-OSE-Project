@@ -2,19 +2,20 @@
 .globl exception
 .align 4
 ex:
+        // physadresse des letzten prozesses speichern wir im mscratch register (siehe kernel.c)
         csrrw a0, mscratch, a0
-        li a0, 0x80200000
+
         // problem, der sp zeigt auf eine virtuelle adresse
         // austauschen der beiden register werte a0 in scr mscratch und mscratch in a0
         // in mscratch können temp werte abgespeichert werden
-        // so haben wir a0 zur verfügung für jetzt
+        // so haben wir a0 zur verfügung
         
         // laden der physischen basisadresse des stacks in a0
 
-        // jetzt können wir platz auf den stack machen 
+        // jetzt können wir platz auf dem stack machen 
         addi sp, sp, -256
         add sp, sp, a0 
-        //zeigt nun auf startbereich des stacks im virtuellen speicher
+        //zeigt nun auf startbereich des stacks im virtuellen speicher für den letzten prozess
 
         // erneutes austauschen von mscratch und a0+
         // dadurch haben wir wieder den originalen wert in register a0
@@ -53,43 +54,58 @@ ex:
         sd t5, 232(sp)
         sd t6, 240(sp)
 
+        mv a0, sp
+
         // call the C trap handler in kernel.c
+        // (kann es sein, dass der wert des sp wieder woanders (kernel?) verändert wird)
         call exception
 
+       // a0 contains the value of SP
+
         // restore registers.
-        ld ra, 0(sp)
-        ld sp, 8(sp)
-        ld gp, 16(sp)
-        ld tp, 24(sp)
-        ld t0, 32(sp)
-        ld t1, 40(sp)
-        ld t2, 48(sp)
-        ld s0, 56(sp)
-        ld s1, 64(sp)
-        // ld a0, 72(sp) // nope, it's the return value...
-        ld a1, 80(sp)
-        ld a2, 88(sp)
-        ld a3, 96(sp)
-        ld a4, 104(sp)
-        ld a5, 112(sp)
-        ld a6, 120(sp)
-        ld a7, 128(sp)
-        ld s2, 136(sp)
-        ld s3, 144(sp)
-        ld s4, 152(sp)
-        ld s5, 160(sp)
-        ld s6, 168(sp)
-        ld s7, 176(sp)
-        ld s8, 184(sp)
-        ld s9, 192(sp)
-        ld s10, 200(sp)
-        ld s11, 208(sp)
-        ld t3, 216(sp)
-        ld t4, 224(sp)
-        ld t5, 232(sp)
-        ld t6, 240(sp)
+        ld ra, 0(a0)
+        ld sp, 8(a0)
+        ld gp, 16(a0)
+        ld tp, 24(a0)
+        ld t0, 32(a0)
+        ld t1, 40(a0)
+        ld t2, 48(a0)
+        ld s0, 56(a0)
+        ld s1, 64(a0)
+        ld a1, 80(a0)
+        ld a2, 88(a0)
+        ld a3, 96(a0)
+        ld a4, 104(a0)
+        ld a5, 112(a0)
+        ld a6, 120(a0)
+        ld a7, 128(a0)
+        ld s2, 136(a0)
+        ld s3, 144(a0)
+        ld s4, 152(a0)
+        ld s5, 160(a0)
+        ld s6, 168(a0)
+        ld s7, 176(a0)
+        ld s8, 184(a0)
+        ld s9, 192(a0)
+        ld s10, 200(a0)
+        ld s11, 208(a0)
+        ld t3, 216(a0)
+        ld t4, 224(a0)
+        ld t5, 232(a0)
+        ld t6, 240(a0)
+        ld a0, 72(a0) // bis hier brauchen wir noch a0 (welche den sp enhält)
+
 
         addi sp, sp, 256
+
+        // laden der pysbase adresse in a0 und a0 in mscratch (austauschen)
+        csrrw a0, mscratch, a0
+
+        // anpassen des sp damit dieser auf pa zeigt (page adresse)
+        sub sp, sp, a0
+
+        // wieder den originalen wert nach a0 zurück swappen
+        csrrw a0, mscratch, a0
 
         // return to whatever we were doing in the kernel.
         mret

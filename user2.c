@@ -41,11 +41,12 @@ char yield(void) {
 // ----
 
 int main(void) {
-    char c = 0;
-    printastring("This is process 2!\n");
+    char c;
+    printastring("Hello from Process 1!\n");
     while(1) {
-      for (c='A'; c <= 'Z'; c++) {
+      for (c='0'; c <= '9'; c++) {
         putachar(c);
+        printastring(" Process 1 here! \n ");
         yield();
       }
     }

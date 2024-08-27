@@ -1,10 +1,14 @@
 #include "types.h"
 #include "riscv.h"
+#include "kernel.h"
 
 extern int main(void);
 extern void ex(void);
 extern void printastring(char *);
 extern void printhex(uint64);
+
+extern pcbentry pcb[MAXPROCS];
+extern uint64 current_pid;
 
 #define NPROC 8 //acht maximale prozesse supported
 #define PGSHIFT 12 //anzahl bits zum shiften wenn eine virtuelle in eine physische adresse übersetzt wird
@@ -15,7 +19,7 @@ extern void printhex(uint64);
 #define PERM_W 2 //writable
 #define PERM_R 1 //readable
 #define PERM_U 4 //user mode
-#define PERM_X 3 // executable
+#define PERM_X 3 // executable 
 
 __attribute__ ((aligned (4096))) uint64 pt[NPROC][512*3];
 //2D array mit D1 = nummer des momentanen prozesses und D2 = maximale einträge von des prozesses
@@ -28,20 +32,22 @@ __attribute__ ((aligned (4096))) uint64 pt[NPROC][512*3];
 //der jeweils erste eintrag von jedem Page table wird mit einem "entry point" versehen
 //dieser entry point verweist auf die nächsten einträge des nächsten page tables
 //&pt[proc][512] ist der eintrag des nächseten tables und wird als erser eintrag im L3 gesetzt (als valid gesetzt und mit hilfe des PGshift für das übersetzen)
-void init_pt(int proc){
-  for(int i=0; i<512;i++){
-    if(i==0){
-      pt[proc][i] = ((uint64)&pt[proc][512]) >> PGSHIFT << PERMSHIFT; //1. adresse des nächsten pagetables (konvertieren in eine uint64 wert adresse)
+uint64 init_pt(int proc) {
+  for (int i=0; i<512; i++) {
+    if (i == 0) {
+      pt[proc][i] = ((uint64)&pt[proc][512]) >> PGSHIFT << PERMSHIFT;  //1. adresse des nächsten pagetables (konvertieren in eine uint64 wert adresse)
       //2. pgshift: verschieben der adresse um 12 bits nach rechts -> extrahieren der Seitenadresse und offset informationen der virtuellen adresse zu entfernen (Seitenadresse)
       //3. permshift: um 10 bits nach links verschieben um platz für die permission bits zu schaffen
       //Ergebnis: Vorbereiten des nächsten Pagetable mit korrekter physischer adresse 
       //Nach diesem muster können dann die weiteren page table einträge eingefügt werden
-      pt[proc][i] |= (1<<PERM_V); //dieser eintrag wird als valid gesetzt (ansonsten ist dieser beim nächsten aufruf invalid und pagewalk wird abgebrochen)
+      pt[proc][i] |= (1 << PERM_V); //dieser eintrag wird als valid gesetzt (ansonsten ist dieser beim nächsten aufruf invalid und pagewalk wird abgebrochen)
       //ausreichend, weil dieser pagetable nur auf weitere einträge vewweisen soll
+      #if 0
       printastring("PTO = ");
       printhex(pt[proc][i]);
       printastring("\n");
-    }else{
+      #endif
+    } else {
       pt[proc][i] = 0; //alle anderen einträge auf invalid setzen
     }
   }
@@ -49,21 +55,24 @@ void init_pt(int proc){
   //zeigt auf spezifischen speicherbereich (0x80000000ULL)
   //setzen von valid und allen weiteren permissions + zuriffsrechte im user mode (accessd und dirty bits auch zugreifbar)
   //hier geht es um die direkte adressierung von physischen speicher (virt -> phy)
-  for(int i=512; i<1024;i++){
+  for(int i=512; i<1024; i++){
     if(i == 512){
-      pt[proc][i] = (0x800000000ULL + (proc+1) * 0x200000ULL) >> PGSHIFT << PERMSHIFT; 
+      pt[proc][i] = (0x80000000ULL + (proc+1) * 0x200000ULL) >> PGSHIFT << PERMSHIFT;
       //startet bei physischen speicher
       //unterschiedliche für alle processe + (proc +1)
       //proc*0x200000ULL -> 2MB eintrag fenster pro prozess (dadurch ist jeder adressraum 2MB groß) 1 Proc * 2 MB = bei 2MB von start, 2 proc * 2MB = 4MB von start, usw,... + die startadresse 0x800...
       //Stichwort: Segemntierung (des physischen RAM)
       pt[proc][i] |= 0x7f; //alle permissions werden gesetzt für diesen eintrag (und folgend für alle einträge in diesem page table)
+      #if 0
       printastring("PT1 = ");
       printhex(pt[proc][i]);
       printastring("\n");
+      #endif
     }else{
       pt[proc][i] = 0; //alle anderen werden auf invalid gesetzt
     }
   }
+  return (uint64)&pt[proc][0];
 }
 
 //vorteil von mehrstufigen paging:
@@ -88,8 +97,16 @@ void setup(void) {
   w_mtvec((uint64)ex);
 
   //initialisieren einer gültigen seitentabelle (seiten tabllen adressen) mit 512 einträgen pro level pro prozess
+  //für MT auch noch den pcb füllen für jeden prozess!
   for(int i = 0; i < NPROC; i++){
-    init_pt(i);
+    pcb[i].pc = -4;
+    pcb[i].sp = 0x1ffff8 - 256; // feste position relativ zur virtuellen adresse
+    // obereres ende des virtuellen adress raumes
+    pcb[i].physbase = 0x80200000ULL + 0x200000 * i;  
+    // erzeugen einer pagetable für diesen prozess
+    // gibt die basis adresse des page tables zurück
+    pcb[i].pagetablebase = init_pt(i);
+    pcb[i].state = NONE;
   }
   //supervisor address translation and protection -> gibt paging modus im RISCV an 
   //wir verwenden hier den SV39 modus (39 virtuelle bit adressen unterstützt) 3Level page design unterstützung
@@ -126,6 +143,21 @@ void setup(void) {
   // set M Exception Program Counter to main, for mret, requires gcc -mcmodel=medany
   //main ist jetzt bei startadresse 0 des jeweiligen prozesses (virtuelle adresse 0 -> wird dann durch unser paging ordentlich mapped in physische)
   w_mepc((uint64)0);
+
+  //setzen der prozess informationen für den ersten run
+  //process 0 ist running, die anderen wartend
+  current_pid = 0;
+  pcb[0].state = RUNNING;
+  pcb[1].state = READY;
+  pcb[2].state =  READY;
+
+  
+  //schreiben in das CSR mscratch register, der physikalischen adresse 
+  //des ersten prozesses (das machen wir dann im kernel extra für alle prozesse, bevor diese switched werden)
+  //im ex.S file kann dann diese adresse ausgelesen werden, damit der stack korrekt justiert werden kann
+  w_mscratch(pcb[0].physbase);
+
+  printastring("Setup completed. User programs may start.");
 
   // switch to user mode (configured in mstatus) and jump to address in mepc CSR -> main().
   asm volatile("mret");

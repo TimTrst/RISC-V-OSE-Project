@@ -20,6 +20,8 @@ uint64 syscall(uint64 nr, uint64 param) {
     return retval;
 }
 
+// enum { PRINTASTRING = 1, PRINTACHAR, GETACHAR };
+
 void printastring(char *s) {
     syscall(PRINTASTRING, (uint64)s);
 }
@@ -38,20 +40,14 @@ char yield(void) {
 
 // ----
 
-
 int main(void) {
-    char c = 'A';
-    printastring("Hello from Process 0!\n");
-    while (1) {
-      putachar(c);
-      c++;
-      if (c > 'Z') c = 'A';
-      printastring(" Process 0 is KING!! \n ");
-      yield();
+    char c;
+    printastring("Hello from Process 2!\n");
+    while(1) {
+        printastring(" Process 2 here, i just yield \n ");
+        yield();
     }
-
     printastring("This is the end!\n");
     return 0;
 }
-
 

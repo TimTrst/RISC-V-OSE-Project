@@ -2,9 +2,14 @@
 #include "riscv.h"
 #include "hardware.h"
 #include "syscalls.h"
+#include "kernel.h"
 
 extern int main(void);
 extern void ex(void);
+extern uint64 pt[8][512*3];
+
+#define SATP_SV39 (8L << 60)
+#define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 12))
 
 __attribute__ ((aligned (16))) char stack0[4096];
 
@@ -12,11 +17,31 @@ void printhex(uint64);
 
 volatile struct uart* uart0 = (volatile struct uart *)0x10000000;
 
-// TODO: implement our syscalls here:
+//erstellen von 8 instanzen dieser datenstruktur
+//hier -> 8 pcb (1 für jeden prozess)
+//enthält für jeden prozess die infos, welceh wir vor dem switchen speichern müssen
+//pcb = prozesssteuerblock
+pcbentry pcb[MAXPROCS];
+uint64 current_pid;
+int was_syscall = 0;
+
+
+// konvertieren einer virtuellen in eine physische adresse für den momentanen prozess
+uint64 virt2phys(uint64 addr){
+  return pcb[current_pid].physbase + addr;
+}
+
+// konvertiert physische zu virtuellen adresse
+// durch abziehen der physischen basis adresse
+uint64 phys2virt(uint64 addr){
+  return addr - pcb[current_pid].physbase;
+}
 
 // Syscall 1: printstring. Takes a char *, prints the string to the UART, returns nothing
 // Syscall 2: putachar.    Takes a char, prints the character to the UART, returns nothing
 // Syscall 3: getachar.    Takes no parameter, reads a character from the UART (keyboard), returns the char
+// Syscall 23: yield. Takes no parameter, gives up the cpu
+// Syscall 42: exit. No parameter, exits the current process
 
 static void putachar(char c) {
   while ((uart0->LSR & (1<<5)) == 0)
@@ -57,44 +82,108 @@ void printhex(uint64 x) {
 
 // This is the C code part of the exception handler
 // "exception" is called from the assembler function "ex" in ex.S with registers saved on the stack
-void exception(void) {
+uint64 exception(riscv_regs *regs) {
   uint64 nr;
   uint64 param;
   uint64 retval = 0;
 
-  asm volatile("mv %0, a7" : "=r" (nr) : : );
-  asm volatile("mv %0, a0" : "=r" (param) : : );
+  was_syscall = 1;
+
+  // rausziehen der richtigen register aus pointer parameter
+  nr = regs->a7;
+  param = regs->a0;
+
+  // nicht mehr notwendig durch das übergeben der gesamten register als pointer zur struktur
+  //asm volatile("mv %0, a7" : "=r" (nr) : : );
+  //asm volatile("mv %0, a0" : "=r" (param) : : );
 
   uint64 pc = r_mepc();
   uint64 mcause = r_mcause();
+  uint64 mtval = r_mtval();
 
-  printastring("mcause = ");
+  pcb[current_pid].pc = pc;
+  // physikalische adresse des register structs wird in eine virtuelle umgewandelt und als stack pointer gesetzt
+  pcb[current_pid].sp = phys2virt((uint64)regs);
+  pcb[current_pid].state = READY;
+
+#ifdef DEBUG
+ printastring("mcause = ");
   printhex(mcause);
   printastring("\n");
+#endif
 
   if (mcause & (1ULL<<63)) {
     // Interrupt - async
+    was_syscall = 0;
     printastring("INT\n");
   } else {
     // all exceptions end up here
     if ((mcause & ~(1ULL<<63)) == 8) { // it's an ECALL!
 
+      #ifdef DEBUG
       printastring("SYSCALL ");
       printhex(nr);
       printastring(" PARAM ");
       printhex(param);
       printastring("\n");
+      #endif
+
+      was_syscall = 1;
 
       switch(nr) {
       case PRINTASTRING:
-        printastring((char *)(param + 0x80200000ULL));
+        // funktion printastring erwartet eine physische adresse
+        printastring((char *)virt2phys(param));
         break;
       case PUTACHAR:
         putachar((char)param);
         break;
       case GETACHAR:
+        // speichern des zeichens als return value
         retval = (uint64)getachar();
           break;
+      case EXIT:
+        pcb[current_pid].state = NONE;
+        // solange noch kein weiterer process im ready state ist, überpring das break und schau erneut
+        while(1){
+          current_pid = (current_pid+1) % MAXPROCS;
+          if(pcb[current_pid].state != READY) continue;
+          break;
+        }
+        // wenn einer ready ist, setzen wir diesen auf running
+        pcb[current_pid].state = RUNNING;
+        break;
+      case YIELD:
+        // handelt sich um eigenes aufgeben
+        // kann direkt wieder auf "ready" gesetzt werden
+        pcb[current_pid].state = READY;
+        //dasselbe wie oben bei exit case
+        //wir schauen einfach nach dem nächsten prozess im ready (kann auch der ursprüngliche prozess sein)
+        while(1){
+          current_pid = (current_pid + 1) % MAXPROCS;
+          if(pcb[current_pid].state == READY){
+            pcb[current_pid].state = RUNNING;
+            break;
+          }
+        }
+        // hier speichern wir die physbase im mscratch für den exception handler später 
+        // somit kann dieser korrekt platz auf dem stack machen für diesen prozess
+        // im falle einer neuen exception
+        w_mscratch(pcb[current_pid].physbase);
+
+        //müssen noch den page table switchen!
+        //#define SATP_SV39 (8L << 60)
+        //helfer methode zum erstellen des satp eintrags
+        //#define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64) pagetable) >> 12))
+        //schreiben in das satp registers
+        //mit page table des neuen prozesses
+        w_satp(MAKE_SATP((uint64)&pt[current_pid][0]));
+        // flushen des mmu buffers
+        __asm__ __volatile__("sfence.vma");
+
+        pc = pcb[current_pid].pc;
+        break;
+
       default:
         printastring("*** INVALID SYSCALL NUMBER!!! ***\n");
         break;
@@ -108,11 +197,26 @@ void exception(void) {
     }
   }
 
+
+  w_satp(MAKE_SATP(pcb[current_pid].pagetablebase));
+  asm volatile("sfence.vma zero, zero");
+
+  w_mscratch(pcb[current_pid].physbase);
+
   // Here, we adjust return value - we want to return to the instruction _after_ the ecall! (at address mepc+4)
-  w_mepc(pc+4);
+  // wenn es kein syscall war, dann müssen wir dort weiter machen, wo der aufrufende prozess unterbrochen wurde
+  if(was_syscall){
+    w_mepc(pcb[current_pid].pc + 4);
+    regs->a0 = retval; //return value of syscall
+  }else{
+    w_mepc(pcb[current_pid].pc);
+  }
 
-  // TODO: pass the return value back in a0
-  asm volatile("mv a0, %0" : : "r" (retval) : );
+  regs = (riscv_regs*)virt2phys(pcb[current_pid].sp);
 
-  // this function returns to ex.S
+  regs->a0 = retval;
+  regs->sp = (uint64)regs;
+
+  // this function returns neuer stackpointer zu ex.S
+  return (uint64)regs;
 }

@@ -9,7 +9,7 @@ KERNELOBJS = boot.o kernel.o ex.o setup.o
 USERDEPS = riscv.h types.h
 USER1OBJS = user1.o userentry.o
 USER2OBJS = user2.o userentry.o
-#USER3OBJS = user3.o userentry.o
+USER3OBJS = user3.o userentry.o
 
 %.o: %.c $(KERNELDEPS) $(USERDEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -17,7 +17,7 @@ USER2OBJS = user2.o userentry.o
 %.o: %.S $(KERNELDEPS) $(USERDEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-all:    user1.bin user2.bin kernel
+all:    user1.bin user2.bin user3.bin kernel
 
 kernel: $(KERNELOBJS) $(KERNELDEPS)
 	$(CC) -g -ffreestanding -fno-common -nostdlib -mno-relax \
@@ -38,18 +38,16 @@ user2.bin: $(USER2OBJS) $(USERDEPS)
 	      -mcmodel=medany   -Wl,-T user.ld userentry.o user2.o -o user2
 	$(OBJCOPY) -O binary user2 user2.bin
 
-#user3.bin: $(USER3OBJS) $(USERDEPS)
-#	$(CC) $(CFLAGS) -c user3.c
-#	$(CC) $(CFLAGS) -c userentry.S
-#	$(CC) -g -ffreestanding -fno-common -nostdlib -mno-relax \
-#	      -mcmodel=medany   -Wl,-T user.ld userentry.o user3.o -o user3
-#	$(OBJCOPY) -O binary user3 user3.bin
+user3.bin: $(USER3OBJS) $(USERDEPS)
+	$(CC) $(CFLAGS) -c user3.c
+	$(CC) $(CFLAGS) -c userentry.S
+	$(CC) -g -ffreestanding -fno-common -nostdlib -mno-relax \
+	      -mcmodel=medany   -Wl,-T user.ld userentry.o user3.o -o user3
+	$(OBJCOPY) -O binary user3 user3.bin
 
 # angeben wo genau sich die user programme befinden sollen (2 mb segmente im RAM ab 0x802)
 run:	user1.bin user2.bin kernel
-	qemu-system-riscv64 -nographic -machine virt -smp 1 -bios none -kernel kernel -device loader,addr=0x80200000,file=user1.bin -device loader,addr=0x80400000,file=user2.bin 
-
-# -device loader,addr=0x80600000,file=user3.bin
+	qemu-system-riscv64 -nographic -machine virt -smp 1 -bios none -kernel kernel -device loader,addr=0x80200000,file=user1.bin -device loader,addr=0x80400000,file=user2.bin -device loader,addr=0x80600000,file=user3.bin
 	
 clean:
 	-@rm -f *.o *.bin kernel user1 user2 userprogs1.h userprogs2.h
