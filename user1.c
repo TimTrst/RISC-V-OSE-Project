@@ -6,14 +6,11 @@ __attribute__ ((aligned (16))) char userstack[4096];
 uint64 syscall(uint64 nr, uint64 param) {
     uint64 retval;
 
-    // TODO: add inline assembler code to copy the value in variable nr to register a7
     asm volatile("mv a7, %0" : : "r" (nr) : );
     asm volatile("mv a0, %0" : : "r" (param) : );
 
-    // here's our ecall!
+    // ecall
     asm volatile("ecall");
-
-    // TODO:add inline assembler code to copy the return value in register a0 to variable retval
 
     // Here we return the return value...
     asm volatile("mv %0, a0" : "=r" (retval) : : );

@@ -80,8 +80,12 @@ void printhex(uint64 x) {
   }
 }
 
-// This is the C code part of the exception handler
-// "exception" is called from the assembler function "ex" in ex.S with registers saved on the stack
+int first_run = 1;
+
+// exception wird von ex.S aufgerufen, sobald eine exception in trap-handler gefangen wird
+// hier übergeben wir einen pointer als parameter
+// dieser pointer zeigt auf die aktuellen Registereinträge des aktuellen prozesses
+// regs kommt aus ex.S (durch register a0, welche den pointer für die aktuelle adresse des sp enthält)
 uint64 exception(riscv_regs *regs) {
   uint64 nr;
   uint64 param;
@@ -197,6 +201,7 @@ uint64 exception(riscv_regs *regs) {
     }
   }
 
+  first_run = 0;
 
   w_satp(MAKE_SATP(pcb[current_pid].pagetablebase));
   asm volatile("sfence.vma zero, zero");
@@ -207,7 +212,6 @@ uint64 exception(riscv_regs *regs) {
   // wenn es kein syscall war, dann müssen wir dort weiter machen, wo der aufrufende prozess unterbrochen wurde
   if(was_syscall){
     w_mepc(pcb[current_pid].pc + 4);
-    regs->a0 = retval; //return value of syscall
   }else{
     w_mepc(pcb[current_pid].pc);
   }
@@ -218,5 +222,6 @@ uint64 exception(riscv_regs *regs) {
   regs->sp = (uint64)regs;
 
   // this function returns neuer stackpointer zu ex.S
+  // wir müssen in ex.S dann die Register des neuen prozesses wiederherstellen
   return (uint64)regs;
 }

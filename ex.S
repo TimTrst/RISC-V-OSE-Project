@@ -17,7 +17,7 @@ ex:
         add sp, sp, a0 
         //zeigt nun auf startbereich des stacks im virtuellen speicher für den letzten prozess
 
-        // erneutes austauschen von mscratch und a0+
+        // erneutes austauschen von mscratch und a0
         // dadurch haben wir wieder den originalen wert in register a0
         csrrw a0, mscratch, a0
 
@@ -54,13 +54,16 @@ ex:
         sd t5, 232(sp)
         sd t6, 240(sp)
 
+        // setzen des regs parameter durch a0 (return value)
         mv a0, sp
 
         // call the C trap handler in kernel.c
-        // (kann es sein, dass der wert des sp wieder woanders (kernel?) verändert wird)
+
         call exception
 
-       // a0 contains the value of SP
+
+        // a0 enthält jetzt den korrekten sp!
+        // als return value der exception function
 
         // restore registers.
         ld ra, 0(a0)

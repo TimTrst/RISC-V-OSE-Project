@@ -1,5 +1,3 @@
-# Build the kernel and user process binaries
-
 CC=riscv64-unknown-elf-gcc
 CFLAGS=-g -mcmodel=medany -mno-relax -I. -ffreestanding
 OBJCOPY=riscv64-unknown-elf-objcopy
@@ -45,10 +43,10 @@ user3.bin: $(USER3OBJS) $(USERDEPS)
 	      -mcmodel=medany   -Wl,-T user.ld userentry.o user3.o -o user3
 	$(OBJCOPY) -O binary user3 user3.bin
 
-# angeben wo genau sich die user programme befinden sollen (2 mb segmente im RAM ab 0x802)
-run:	user1.bin user2.bin kernel
-	qemu-system-riscv64 -nographic -machine virt -smp 1 -bios none -kernel kernel -device loader,addr=0x80200000,file=user1.bin -device loader,addr=0x80400000,file=user2.bin -device loader,addr=0x80600000,file=user3.bin
-	
-clean:
-	-@rm -f *.o *.bin kernel user1 user2 userprogs1.h userprogs2.h
+#run:	user1.bin user2.bin kernel
+#	@echo "Running QEMU..."
+#	qemu-system-riscv64 -nographic -machine virt -smp 1 -bios none -kernel kernel -device loader,addr=0x80200000,file=user1.bin -device loader,addr=0x80400000,file=user2.bin -device loader,addr=0x80600000,file=user3.bin
+#	
+#clean:
+#	-@rm -f *.o *.bin kernel user1 user2 userprogs1.h userprogs2.h
 

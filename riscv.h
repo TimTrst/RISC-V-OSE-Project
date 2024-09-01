@@ -149,8 +149,6 @@ w_mtvec(uint64 x)
   asm volatile("csrw mtvec, %0" : : "r" (x));
 }
 
-
-
 typedef struct {
         uint64 ra;
         uint64 sp;

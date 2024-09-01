@@ -158,6 +158,7 @@ void setup(void) {
   w_mscratch(pcb[0].physbase);
 
   printastring("Setup completed. User programs may start.");
+  printastring("\n");
 
   // switch to user mode (configured in mstatus) and jump to address in mepc CSR -> main().
   asm volatile("mret");
