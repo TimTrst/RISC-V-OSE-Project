@@ -24,6 +24,7 @@ volatile struct uart* uart0 = (volatile struct uart *)0x10000000;
 pcbentry pcb[MAXPROCS];
 uint64 current_pid;
 int was_syscall = 0;
+uint64 ticks = 0;
 
 
 // konvertieren einer virtuellen in eine physische adresse für den momentanen prozess
@@ -119,6 +120,28 @@ uint64 exception(riscv_regs *regs) {
   if (mcause & (1ULL<<63)) {
     // Interrupt - async
     was_syscall = 0;
+
+    // auslesen ob es sich um einen tier interrupts (von CLINT handelt)
+    if((mcause & ~(1ULL << 63)) == 7 ) { // cleared das interrupt indicator bit an stelle 64 und lässt die unteren unverändert -> so kann egal was für eine art von interrupt (exception oder async) die lower bits ausgelesen werden (== 7?)
+        int interval = 20000;
+
+        *(uint64*)CLINT_MTIMECMP(0) = *(uint64*)CLINT_MTIME + interval;
+        ticks++;
+
+        if((ticks % 10) == 0) {
+          pcb[current_pid].state = READY;
+
+          while(1){
+            current_pid = (current_pid + 1) % MAXPROCS;
+            if(pcb[current_pid].state == READY) {
+              pcb[current_pid].state = RUNNING;
+              break;
+            }
+          }
+          w_mscratch(pcb[current_pid].physbase);
+          pc = pcb[current_pid].pc;
+        }
+    }
     printastring("INT\n");
   } else {
     // all exceptions end up here

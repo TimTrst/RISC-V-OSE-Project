@@ -47,7 +47,7 @@ int main(void) {
       for (c='0'; c <= '9'; c++) {
         putachar(c);
         printastring(" Process 1 here! \n ");
-        yield();
+        //yield();
       }
     }
     printastring("This is the end!\n");

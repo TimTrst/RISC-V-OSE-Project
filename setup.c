@@ -1,6 +1,7 @@
 #include "types.h"
 #include "riscv.h"
 #include "kernel.h"
+#include "hardware.h"
 
 extern int main(void);
 extern void ex(void);
@@ -77,6 +78,23 @@ uint64 init_pt(int proc) {
 
 //vorteil von mehrstufigen paging:
 // es müssen nicht jederzeit alle teile der seitentabelle im speicher gehalten werden müssen (SPeichereffizient!)
+
+
+void timerinit(void){
+  // cpu kern id
+  int id = 0;
+
+  int interval = 20000; // zyklen bis interrupt
+  // init cmp register mit dem intervall zyklus (20.000 warten bis interrupt)
+  *(uint64*)CLINT_MTIMECMP(id) = *(uint64*)CLINT_MTIME + interval;
+  
+  // aktivieren von machine mode interrupts
+  // w_mstatus(r_mstatus | MSTATUS_MIE);
+
+  // akt von timer interrupts (im machine mode)
+  w_mie(r_mie() | MIE_MTIE);
+}
+
 
 void setup(void) {
   //setzen des letzten modes auf user mode
@@ -156,6 +174,8 @@ void setup(void) {
   //des ersten prozesses (das machen wir dann im kernel extra für alle prozesse, bevor diese switched werden)
   //im ex.S file kann dann diese adresse ausgelesen werden, damit der stack korrekt justiert werden kann
   w_mscratch(pcb[0].physbase);
+
+  timerinit();
 
   printastring("Setup completed. User programs may start.");
   printastring("\n");

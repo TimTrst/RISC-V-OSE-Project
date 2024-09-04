@@ -17,3 +17,27 @@ struct uart {
    uint8_t LSR; // R   = line status register (offset 5)
 };
 
+// core local interruptor (CLINT), which contains the timer.
+#define CLINT 0x2000000L // base adresse des clints
+// base adresse des compare regs
+// + einen offset für jeden cmp reg jedes cpu kerns
+#define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
+// adresse der momentanen time 
+// zyklen, seit system booted wurde 
+// wird kontinuierlich inkrementiert und mit cmp verglichen
+#define CLINT_MTIME (CLINT + 0xBFF8)
+
+
+// platform level interrupt controller (PLIC)
+// -> handled external interrupts (eg. hardware)
+#define PLIC 0x0c000000L // basis adresse plic
+#define PLIC_PRIORITY (PLIC + 0x0) // jeder interrupt kann eine prio haben
+#define PLIC_PENDING (PLIC + 0x1000) // adrese wo wartende interrupts zu finden sind
+#define PLIC_MENABLE (PLIC + 0x2000) // adresse register, welches interrupts im M mode enabled
+#define PLIC_SENABLE (PLIC + 0x2080) // selbe für S mode
+#define PLIC_MPRIORITY (PLIC + 0x200000) // prio schranke -> alles was darunter ist an interrupts, wird keinen auslössen in M mode
+#define PLIC_SPRIORITY (PLIC + 0x201000) // selbe für interrupts während S mode
+#define PLIC_MCLAIM (PLIC + 0x200004) // adresse wo der highest-prio interrupts hinterlegt ist und dann serviced wird
+#define PLIC_SCLAIM (PLIC + 0x201004) // selbe für S mode interrupts
+
+#define UART0_IRQ 10

@@ -44,7 +44,7 @@ int main(void) {
       c++;
       if (c > 'Z') c = 'A';
       printastring(" Process 0 is KING!! \n ");
-      yield();
+      //yield();
     }
 
     printastring("This is the end!\n");
