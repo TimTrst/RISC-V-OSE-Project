@@ -44,7 +44,7 @@ int main(void) {
     char c;
     printastring("Hello from Process 2!\n");
     while(1) {
-        printastring(" Process 2 here, i just yield \n ");
+        //printastring(" Process 2 here, i just yield \n ");
         //yield();
     }
     printastring("This is the end!\n");

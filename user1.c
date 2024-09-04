@@ -37,14 +37,11 @@ char yield(void) {
 
 
 int main(void) {
-    char c = 'A';
+    char c;
     printastring("Hello from Process 0!\n");
     while (1) {
-      putachar(c);
-      c++;
-      if (c > 'Z') c = 'A';
-      printastring(" Process 0 is KING!! \n ");
-      //yield();
+      c = getachar();
+      putachar(c & ~0x20); // ~0x20 konvertiert die lowercase letter in uppercase letter durch inertieren des 6th bits 
     }
 
     printastring("This is the end!\n");

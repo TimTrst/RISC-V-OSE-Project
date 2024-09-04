@@ -41,3 +41,7 @@ struct uart {
 #define PLIC_SCLAIM (PLIC + 0x201004) // selbe für S mode interrupts
 
 #define UART0_IRQ 10
+
+#define MTI 7 // machine timer inerrupt
+#define MEI 11 // machine external interrupt
+#define MSI 8 // machine software interrupt

@@ -1,6 +1,6 @@
 #define MAXPROCS 8
 
-typedef enum { NONE, READY, RUNNING, BLOCKED } procstate_t;
+typedef enum { NONE, READY, RUNNING, BLOCKED, SLEEPING } procstate_t;
 
 // hält alle relevanten informationen eines processes
 // diese infos müssen wir abspeichern
@@ -10,6 +10,7 @@ typedef struct {
   uint64 sp;
   uint64 physbase;
   uint64 pagetablebase;
+  uint64 wakeuptime;
   procstate_t state;
 } pcbentry;
 

@@ -45,8 +45,8 @@ int main(void) {
     printastring("Hello from Process 1!\n");
     while(1) {
       for (c='0'; c <= '9'; c++) {
-        putachar(c);
-        printastring(" Process 1 here! \n ");
+        //putachar(c);
+        //printastring(" Process 1 here! \n ");
         //yield();
       }
     }

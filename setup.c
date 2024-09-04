@@ -40,14 +40,7 @@ uint64 init_pt(int proc) {
       //2. pgshift: verschieben der adresse um 12 bits nach rechts -> extrahieren der Seitenadresse und offset informationen der virtuellen adresse zu entfernen (Seitenadresse)
       //3. permshift: um 10 bits nach links verschieben um platz für die permission bits zu schaffen
       //Ergebnis: Vorbereiten des nächsten Pagetable mit korrekter physischer adresse 
-      //Nach diesem muster können dann die weiteren page table einträge eingefügt werden
       pt[proc][i] |= (1 << PERM_V); //dieser eintrag wird als valid gesetzt (ansonsten ist dieser beim nächsten aufruf invalid und pagewalk wird abgebrochen)
-      //ausreichend, weil dieser pagetable nur auf weitere einträge vewweisen soll
-      #if 0
-      printastring("PTO = ");
-      printhex(pt[proc][i]);
-      printastring("\n");
-      #endif
     } else {
       pt[proc][i] = 0; //alle anderen einträge auf invalid setzen
     }
@@ -64,11 +57,6 @@ uint64 init_pt(int proc) {
       //proc*0x200000ULL -> 2MB eintrag fenster pro prozess (dadurch ist jeder adressraum 2MB groß) 1 Proc * 2 MB = bei 2MB von start, 2 proc * 2MB = 4MB von start, usw,... + die startadresse 0x800...
       //Stichwort: Segemntierung (des physischen RAM)
       pt[proc][i] |= 0x7f; //alle permissions werden gesetzt für diesen eintrag (und folgend für alle einträge in diesem page table)
-      #if 0
-      printastring("PT1 = ");
-      printhex(pt[proc][i]);
-      printastring("\n");
-      #endif
     }else{
       pt[proc][i] = 0; //alle anderen werden auf invalid gesetzt
     }
@@ -84,7 +72,7 @@ void timerinit(void){
   // cpu kern id
   int id = 0;
 
-  int interval = 20000; // zyklen bis interrupt
+  int interval = 50000; // zyklen bis interrupt
   // init cmp register mit dem intervall zyklus (20.000 warten bis interrupt)
   *(uint64*)CLINT_MTIMECMP(id) = *(uint64*)CLINT_MTIME + interval;
   
@@ -93,6 +81,28 @@ void timerinit(void){
 
   // akt von timer interrupts (im machine mode)
   w_mie(r_mie() | MIE_MTIE);
+}
+
+// externe interrupts (PLIC)
+void interruptinit(){
+  // setting priority for UART0 device
+  // PLIC = base adresse des plics, UART0_IRQ = identifier des uart0 devices
+  // * 4 für korrekten offset im plics prio memory
+  *(uint32*)(PLIC + UART0_IRQ*4) = 1; // 0 = disabled
+
+  // enables UART0 interrupt enable bit for M mode
+  // gilt für momentanen processor core 
+  // enabled interrupts dieses devices für diesen kern
+  *(uint32*)PLIC_MENABLE = (1 << UART0_IRQ); // setzt bit in plic_menable auf 1 das für diese device gilt
+
+  // setzt interrupt priority für diesen kern im m mode
+  // minimum prio die ein interrupt haben muss, damit dieser kern diesen interrupt behandelt
+  // 0 -> alle interrupts werden behandelt
+  *(uint32*)PLIC_MPRIORITY = 0;
+
+  // enablen von externen interrupts im machine mode
+  // schreiben von 1 an die 11 stelle im MIE CSR (MIE_MEIE = (1L << 11))
+  w_mie(r_mie() | MIE_MEIE);
 }
 
 
@@ -176,6 +186,12 @@ void setup(void) {
   w_mscratch(pcb[0].physbase);
 
   timerinit();
+  interruptinit();
+
+  // enable receive interrupts via uart0
+  // IER -> UART interrupt enable register
+  extern volatile struct uart* uart0;
+  uart0->IER=0x1;
 
   printastring("Setup completed. User programs may start.");
   printastring("\n");
