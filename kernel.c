@@ -70,8 +70,7 @@ static char getachar(void) {
   return c;
 }
 
-// This is a useful helper function (after you implemented putachar and printstring)
-void printhex(uint64 x) {
+oid printhex(uint64 x) {
   int i;
   char s;
 
@@ -86,26 +85,23 @@ void printhex(uint64 x) {
   }
 }
 
-// welcher interrupt als nächstes
 int plic_claim(void){
-  int irq = *(uint32*)PLIC_MCLAIM; // beinhaltet adresse des highest prio interrupts
+  int irq = *(uint32*)PLIC_MCLAIM; 
   return irq;
 }
 
-// plic mitteilen, dass aktueller interrupt fertig behandelt wurde
 void plic_complete(int irq){
   *(uint32*)PLIC_MCLAIM = irq;
 }
 
 int buffer_is_full(void){
-  return (full_flag == 1); // return 1 if full
+  return (full_flag == 1); 
 }
 
 int buffer_is_empty(void){
-  return (nelem == 0); // return 1 if empty
+  return (nelem == 0); 
 }
 
-// einfügen in buffer von neuen schreiboperationen
 int rb_write(char c){
   int retval;
 
@@ -123,7 +119,6 @@ int rb_write(char c){
   return retval;
 }
 
-// auslesen von einträgen in den buffer
 int rb_read(char *c){
   int retval;
 
@@ -154,7 +149,6 @@ unsigned char readachar(void){
   }
 }
 
-// switching processes
 void schedule(){
   while(1){
     current_pid = (current_pid + 1) % MAXPROCS; //wrap around if current is last process 
@@ -218,8 +212,6 @@ uint64 exception(riscv_regs *regs) {
         if((ticks % 10) == 0) {
           pcb[current_pid].state = READY;
 
-          // any process sleeping?
-          // wird im moment noch nicht benötigt, kein process called syscall sleep
           for(int i = 0; i<MAXPROCS; i++){
             if(pcb[i].state == SLEEPING){
               if(ticks >= pcb[i].wakeuptime){
@@ -256,7 +248,6 @@ uint64 exception(riscv_regs *regs) {
         schedule();
         break;
       case PRINTASTRING:
-        // funktion printastring erwartet eine physische adresse
         printastring((char *)virt2phys(param));
         break;
       case PUTACHAR:
@@ -282,11 +273,9 @@ uint64 exception(riscv_regs *regs) {
         pcb[current_pid].state = RUNNING;
         break;
       case YIELD:
-        // handelt sich um eigenes aufgeben
-        // kann direkt wieder auf "ready" gesetzt werden
+
         pcb[current_pid].state = READY;
-        //dasselbe wie oben bei exit case
-        //wir schauen einfach nach dem nächsten prozess im ready (kann auch der ursprüngliche prozess sein)
+  
         schedule();
         break;
 
@@ -310,8 +299,6 @@ uint64 exception(riscv_regs *regs) {
 
   w_mscratch(pcb[current_pid].physbase);
 
-  // Here, we adjust return value - we want to return to the instruction _after_ the ecall! (at address mepc+4)
-  // wenn es kein syscall war, dann müssen wir dort weiter machen, wo der aufrufende prozess unterbrochen wurde
   if(was_syscall){
     w_mepc(pcb[current_pid].pc + 4);
   }else{
@@ -323,7 +310,5 @@ uint64 exception(riscv_regs *regs) {
   regs->a0 = retval;
   regs->sp = (uint64)regs;
 
-  // this function returns neuer stackpointer zu ex.S
-  // wir müssen in ex.S dann die Register des neuen prozesses wiederherstellen
   return (uint64)regs;
 }
