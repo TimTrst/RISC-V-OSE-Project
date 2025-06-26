@@ -2,26 +2,15 @@
 .globl exception
 .align 4
 ex:
-        // physadresse des letzten prozesses speichern wir im mscratch register (siehe kernel.c)
+
         csrrw a0, mscratch, a0
 
-        // problem, der sp zeigt auf eine virtuelle adresse
-        // austauschen der beiden register werte a0 in scr mscratch und mscratch in a0
-        // in mscratch können temp werte abgespeichert werden
-        // so haben wir a0 zur verfügung
-        
-        // laden der physischen basisadresse des stacks in a0
-
-        // jetzt können wir platz auf dem stack machen 
         addi sp, sp, -256
         add sp, sp, a0 
-        //zeigt nun auf startbereich des stacks im virtuellen speicher für den letzten prozess
-
-        // erneutes austauschen von mscratch und a0
-        // dadurch haben wir wieder den originalen wert in register a0
+ 
         csrrw a0, mscratch, a0
 
-        // save the registers.
+
         sd ra, 0(sp)
         sd sp, 8(sp)
         sd gp, 16(sp)
@@ -54,18 +43,10 @@ ex:
         sd t5, 232(sp)
         sd t6, 240(sp)
 
-        // setzen des regs parameter durch a0 (return value)
         mv a0, sp
-
-        // call the C trap handler in kernel.c
 
         call exception
 
-
-        // a0 enthält jetzt den korrekten sp!
-        // als return value der exception function
-
-        // restore registers.
         ld ra, 0(a0)
         ld sp, 8(a0)
         ld gp, 16(a0)
@@ -96,7 +77,7 @@ ex:
         ld t4, 224(a0)
         ld t5, 232(a0)
         ld t6, 240(a0)
-        ld a0, 72(a0) // bis hier brauchen wir noch a0 (welche den sp enhält)
+        ld a0, 72(a0) 
 
 
         addi sp, sp, 256
@@ -110,6 +91,5 @@ ex:
         // wieder den originalen wert nach a0 zurück swappen
         csrrw a0, mscratch, a0
 
-        // return to whatever we were doing in the kernel.
         mret
 
